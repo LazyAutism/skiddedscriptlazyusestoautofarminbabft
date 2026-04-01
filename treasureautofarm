@@ -1,17 +1,63 @@
 --================================================--
--- // TREASURE AUTO FARM (AUTO RECONNECT VERSION)
+-- // TREASURE AUTO FARM (AUTO SERVER HOP VERSION)
 --================================================--
 
--- // AUTO RE-QUEUE ON DISCONNECT / TELEPORT
+--================================================--
+-- // AUTO RE-QUEUE ON TELEPORT / REJOIN
+--================================================--
 if queue_on_teleport then
     queue_on_teleport([[
         task.wait(2)
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/REPLACE/THIS_WITH_YOUR_RAW_SCRIPT.lua"))()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/LazyAutism/skiddedscriptlazyusestoautofarminbabft/main/treasureautofarm"))()
     ]])
 end
 
 --================================================--
--- // Custom Settings
+-- // SERVICES
+--================================================--
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local VirtualUser = game:GetService("VirtualUser")
+
+local LocalPlayer = Players.LocalPlayer
+local PlaceId = game.PlaceId
+
+--================================================--
+-- // ANTI AFK
+--================================================--
+LocalPlayer.Idled:Connect(function()
+    VirtualUser:CaptureController()
+    VirtualUser:ClickButton2(Vector2.new())
+end)
+
+--================================================--
+-- // AUTO SERVER HOP ON REJOIN
+--================================================--
+task.spawn(function()
+    task.wait(6) -- wait for Roblox to fully load after reconnect
+
+    local success, servers = pcall(function()
+        return HttpService:JSONDecode(
+            game:HttpGet(
+                "https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+            )
+        )
+    end)
+
+    if success and servers and servers.data then
+        for _, server in ipairs(servers.data) do
+            if server.playing < server.maxPlayers then
+                TeleportService:TeleportToPlaceInstance(PlaceId, server.id, LocalPlayer)
+                return
+            end
+        end
+    end
+end)
+
+--================================================--
+-- // CUSTOM SETTINGS
 --================================================--
 getgenv().TreasureAutoFarm = {
     Enabled = true,
@@ -20,13 +66,8 @@ getgenv().TreasureAutoFarm = {
 }
 
 --================================================--
--- // Services
+-- // INTERNAL STATE
 --================================================--
-local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
-local TeleportService = game:GetService("TeleportService")
-
-local LocalPlayer = Players.LocalPlayer
 local autoFarmRun = 1
 local LastCharacter = nil
 
@@ -40,7 +81,8 @@ local function autoFarm()
     local HRP = Character:WaitForChild("HumanoidRootPart", 10)
     if not HRP then return end
 
-    local NormalStages = Workspace.BoatStages.NormalStages
+    local NormalStages = Workspace.BoatStages and Workspace.BoatStages.NormalStages
+    if not NormalStages then return end
 
     for i = 1, 10 do
         if not getgenv().TreasureAutoFarm.Enabled then break end
@@ -49,7 +91,6 @@ local function autoFarm()
         if Stage then
             local DarknessPart = Stage:FindFirstChild("DarknessPart")
             if DarknessPart then
-                print("Teleporting to stage " .. i)
                 HRP.CFrame = DarknessPart.CFrame
 
                 local Part = Instance.new("Part")
@@ -64,7 +105,6 @@ local function autoFarm()
         end
     end
 
-    print("Ending run " .. autoFarmRun)
     Character:BreakJoints()
 end
 
@@ -72,10 +112,7 @@ end
 -- // MAIN LOOP
 --================================================--
 while task.wait(0.5) do
-    if not getgenv().TreasureAutoFarm.Enabled then
-        warn("Script disabled.")
-        break
-    end
+    if not getgenv().TreasureAutoFarm.Enabled then break end
 
     local Char = LocalPlayer.Character
     local Hum = Char and Char:FindFirstChildOfClass("Humanoid")
@@ -89,14 +126,9 @@ while task.wait(0.5) do
         local Root = Char:WaitForChild("HumanoidRootPart", 5)
         if Root then
             task.wait(getgenv().TreasureAutoFarm.TimeBetweenRuns)
-            print("Starting run " .. autoFarmRun)
-
             autoFarm()
-
             LastCharacter = Char
-            print("Ended run " .. autoFarmRun)
             autoFarmRun += 1
-
             task.wait(getgenv().TreasureAutoFarm.TimeBetweenRuns)
         end
     end
