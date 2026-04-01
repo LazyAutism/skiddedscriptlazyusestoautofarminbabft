@@ -1,0 +1,103 @@
+--================================================--
+-- // TREASURE AUTO FARM (AUTO RECONNECT VERSION)
+--================================================--
+
+-- // AUTO RE-QUEUE ON DISCONNECT / TELEPORT
+if queue_on_teleport then
+    queue_on_teleport([[
+        task.wait(2)
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/REPLACE/THIS_WITH_YOUR_RAW_SCRIPT.lua"))()
+    ]])
+end
+
+--================================================--
+-- // Custom Settings
+--================================================--
+getgenv().TreasureAutoFarm = {
+    Enabled = true,
+    Teleport = 2,
+    TimeBetweenRuns = .5
+}
+
+--================================================--
+-- // Services
+--================================================--
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local TeleportService = game:GetService("TeleportService")
+
+local LocalPlayer = Players.LocalPlayer
+local autoFarmRun = 1
+local LastCharacter = nil
+
+--================================================--
+-- // AUTO FARM FUNCTION
+--================================================--
+local function autoFarm()
+    local Character = LocalPlayer.Character
+    if not Character then return end
+
+    local HRP = Character:WaitForChild("HumanoidRootPart", 10)
+    if not HRP then return end
+
+    local NormalStages = Workspace.BoatStages.NormalStages
+
+    for i = 1, 10 do
+        if not getgenv().TreasureAutoFarm.Enabled then break end
+
+        local Stage = NormalStages:FindFirstChild("CaveStage" .. i)
+        if Stage then
+            local DarknessPart = Stage:FindFirstChild("DarknessPart")
+            if DarknessPart then
+                print("Teleporting to stage " .. i)
+                HRP.CFrame = DarknessPart.CFrame
+
+                local Part = Instance.new("Part")
+                Part.Parent = Character
+                Part.Anchored = true
+                Part.Size = Vector3.new(5, 1, 5)
+                Part.CFrame = HRP.CFrame * CFrame.new(0, -3.5, 0)
+
+                task.wait(getgenv().TreasureAutoFarm.Teleport)
+                Part:Destroy()
+            end
+        end
+    end
+
+    print("Ending run " .. autoFarmRun)
+    Character:BreakJoints()
+end
+
+--================================================--
+-- // MAIN LOOP
+--================================================--
+while task.wait(0.5) do
+    if not getgenv().TreasureAutoFarm.Enabled then
+        warn("Script disabled.")
+        break
+    end
+
+    local Char = LocalPlayer.Character
+    local Hum = Char and Char:FindFirstChildOfClass("Humanoid")
+
+    if Char
+        and Char ~= LastCharacter
+        and Hum
+        and Hum.Health > 0
+        and Hum:GetState() ~= Enum.HumanoidStateType.Dead then
+
+        local Root = Char:WaitForChild("HumanoidRootPart", 5)
+        if Root then
+            task.wait(getgenv().TreasureAutoFarm.TimeBetweenRuns)
+            print("Starting run " .. autoFarmRun)
+
+            autoFarm()
+
+            LastCharacter = Char
+            print("Ended run " .. autoFarmRun)
+            autoFarmRun += 1
+
+            task.wait(getgenv().TreasureAutoFarm.TimeBetweenRuns)
+        end
+    end
+end
